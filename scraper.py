@@ -67,7 +67,7 @@ class OcsSpider(scrapy.Spider):
             sqlite_data['{}_low'.format(range_type)] = low
             sqlite_data['{}_high'.format(range_type)] = high
         sqlite_data['terpenes'] = ','.join(result['terpenes'])
-        scraperwiki.sqlite.save(unique_keys=[], data=sqlite_data)
+        scraperwiki.sqlite.save(unique_keys=['sku'], data=sqlite_data)
 
 
 
