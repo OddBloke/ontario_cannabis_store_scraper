@@ -41,6 +41,8 @@ class OcsSpider(scrapy.Spider):
             '/@data-full-text').extract_first().strip()
         result['type'] = response.xpath(
             './/nav[contains(@class, "breadcrumbs")]/a/text()')[-2].extract()
+        result['image'] = response.xpath(
+            '//div[@class="product-images__slide"]/img/@src').extract_first()
 
         # Properties
         get_property = lambda prop: response.xpath(
@@ -66,7 +68,7 @@ class OcsSpider(scrapy.Spider):
         sqlite_data = {
             k: v for k, v in result.items()
             if k in ['url', 'brand', 'name', 'sku', 'price', 'description',
-                     'type', 'plant_type']}
+                     'type', 'plant_type', 'image']}
         for range_type in ['thc', 'cbd']:
             low, high = result['{}_range'.format(range_type)]
             sqlite_data['{}_low'.format(range_type)] = low
