@@ -80,8 +80,21 @@ class OcsSpider(scrapy.Spider):
                                 table_name='history')
 
 
+def do_fixups():
+    # Fix early timestamp bug (fixed in commit 2572484)
+    scraperwiki.sql.execute(
+        'UPDATE history SET timestamp = 1541547120'
+        ' WHERE timestamp IN (1541547123, 1541547125, 1541547126)')
+    scraperwiki.sql.execute(
+        'UPDATE history SET timestamp = 1541547158'
+        ' WHERE timestamp IN (1541547159, 1541547161, 1541547163)')
+    scraperwiki.sql.execute(
+        'UPDATE history SET timestamp = 1541600344'
+        ' WHERE timestamp IN (1541600345, 1541600346, 1541600349)')
+
 
 if __name__ == '__main__':
+    do_fixups()
     process = CrawlerProcess()
     process.crawl(OcsSpider)
     process.start()
