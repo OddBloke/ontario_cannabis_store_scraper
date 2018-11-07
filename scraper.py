@@ -5,13 +5,15 @@ import scrapy
 from scrapy.crawler import CrawlerProcess
 
 
+TIMESTAMP = int(time.time())
+
+
 class OcsSpider(scrapy.Spider):
     name = 'ocs'
     allowed_domains = ['ocs.ca']
     start_urls = ['https://ocs.ca/collections/all-cannabis-products']
 
     def parse(self, response):
-        self.timestamp = int(time.time())
         next_href = response.xpath(
             './/li[@class="pagination_next"]/a/@href').extract_first()
         for product_link in response.xpath(
@@ -72,7 +74,7 @@ class OcsSpider(scrapy.Spider):
         sqlite_data['terpenes'] = ','.join(result['terpenes'])
         scraperwiki.sqlite.save(unique_keys=['sku'], data=sqlite_data)
 
-        sqlite_data['timestamp'] = self.timestamp
+        sqlite_data['timestamp'] = TIMESTAMP
         scraperwiki.sqlite.save(unique_keys=['timestamp', 'sku'],
                                 data=sqlite_data,
                                 table_name='history')
