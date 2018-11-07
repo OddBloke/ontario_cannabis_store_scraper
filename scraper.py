@@ -36,7 +36,7 @@ class OcsSpider(scrapy.Spider):
 
         result['description'] = response.xpath(
             './/*[@class="product__info"]/div/p'
-            '/@data-full-text').extract_first()
+            '/@data-full-text').extract_first().strip()
         result['type'] = response.xpath(
             './/nav[contains(@class, "breadcrumbs")]/a/text()')[-2].extract()
 
