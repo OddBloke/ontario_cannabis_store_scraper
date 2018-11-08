@@ -32,7 +32,7 @@ def handler(event, context):
     new_timestamp = None
     for entry in r.json():
         entry['price'] = float(entry['price'])
-        status = 'Newly listed on OCS:\n{name} by {brand} (${price:.2f})\n{url}'.format(**entry)
+        status = 'Newly listed on Ontario Cannabis Store:\n{name} by {brand} (${price:.2f})\n#ocs\n{url}'.format(**entry)
         image = entry.get('image')
         if image is not None and not image.startswith('http'):
             image = 'https:' + image
