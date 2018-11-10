@@ -7,11 +7,52 @@ import requests
 import twitter
 
 
-TWEET_PREFIX = 'New availability on Ontario Cannabis Store:\n{name} by {brand}'
+TWEET_PREFIX = (
+    'New availability on Ontario Cannabis Store:\n{name} by {brand_twitter}')
 TWEET_SUFFIX = '\n#ocs\n{url}'
+BRAND_TWITTERS = {
+    '7ACRES': '@7acresMJ',
+    # No tweets from the account yet, and not pointed at from their website
+    # 'Ace Valley': '@acevalleyco',
+    # Alta Vie is a MedReleaf brand, so doesn't have its own account
+    # 'Alta Vie': '',
+    'Aurora': '@aurora_mmj',
+    'Canna Flower': '@CannaFarmsLtd',
+    # Possibly at @covecrafted but account is currently protected
+    # 'Cove': '',
+    'DNA Genetics': '@dnagenetics',
+    # No tweets from the account yet, and not pointed at from their website
+    # 'Edison': '@edisoncannabis',
+    # 'Fireside': '',
+    'Flowr': '@flowrcanada',
+    'Haven St.': '@ExploreHavenSt',
+    'Hexo': '@hexo',
+    'High Tide': '@RealHighTideInc',
+    # 'Irisa': '',
+    # 'LBS': '',
+    'Liiv': '@liivcannabis',
+    # 'Northern Harvest': '',
+    # 'Plain Packaging': '',
+    # 'RIFF': '',
+    'Redecan': '@redecanca',
+    # Recreational brand of United Greeneries, no dedicated account
+    # 'Royal High': '',
+    'SYNR.G': '@SynrgCannabis',
+    # No tweets from the account yet, and not pointed at from their website
+    # 'San Rafael': '@SanRafael71',
+    'Seven Oaks': '@sevenoakscanada',
+    # Recreational brand of Aphria, no dedicated account
+    # 'Solei': '',
+    'Symbl': '@SymblCannabis',
+    'Tweed': '@TweedInc',
+    'Up': '@updotca',
+    # 'Vertical': '',
+    'WeedMD': '@WeedMD',
+    # 'Woodstock': '',
+}
 
 LOW_STOCK_MSG = ('Ontario Cannabis Store are running low on:\n{name} by'
-                 ' {brand}\nOnly {combined_total} {units} left!'
+                 ' {brand_twitter}\nOnly {combined_total} {units} left!'
                  + TWEET_SUFFIX)
 
 
@@ -22,6 +63,7 @@ def _fix_image(image):
 
 
 def _format_status(entry, content):
+    entry['brand_twitter'] = BRAND_TWITTERS.get(entry['brand'], entry['brand'])
     return (TWEET_PREFIX + content + TWEET_SUFFIX).format(**entry)
 
 
@@ -94,6 +136,8 @@ def handler_for_timestamp(current_state, debug=False):
             units = (
                 'units' if entry.get('standalone_availability') is not None
                 else 'grams')
+            entry['brand_twitter'] = BRAND_TWITTERS.get(entry['brand'],
+                                                        entry['brand'])
             status = LOW_STOCK_MSG.format(units=units, **entry)
             last_updates[entry['sku']] = int(datetime.now().strftime('%s'))
             print(status, len(status))
