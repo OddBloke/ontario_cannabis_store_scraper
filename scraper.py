@@ -27,6 +27,14 @@ class OcsSpider(scrapy.Spider):
         if next_href is not None:
             yield response.follow(next_href)
 
+    @property
+    def slimit_parser(self):
+        parser = getattr(self, '_slimit_parser', None)
+        if parser is None:
+            parser = Parser()
+            self._slimit_parser = parser
+        return parser
+
     def parse_product_page(self, response):
         result = {'url': response.url}
 
@@ -65,8 +73,7 @@ class OcsSpider(scrapy.Spider):
 
         shopify_script_content = response.xpath(
             '//script[contains(text(), "var meta =")]/text()').extract_first()
-        parser = Parser()
-        tree = parser.parse(shopify_script_content)
+        tree = self.slimit_parser.parse(shopify_script_content)
         for node in nodevisitor.visit(tree):
             if node.to_ecma().startswith('"variants":'):
                 variants = json.loads(node.right.to_ecma())
@@ -82,8 +89,7 @@ class OcsSpider(scrapy.Spider):
             '/text()').extract_first()
         # slimit chokes on the full content, so just use the line we care about
         inventory_quantities_line = (line for line in inventory_script_content.splitlines() if 'var inventory_quantities' in line).next()
-        parser = Parser()
-        tree = parser.parse(inventory_quantities_line)
+        tree = self.slimit_parser.parse(inventory_quantities_line)
         for node in nodevisitor.visit(tree):
             if node.to_ecma().startswith('inventory_quantities ='):
                 # This gets us inventory_quantities = {...}; the {...} uses
