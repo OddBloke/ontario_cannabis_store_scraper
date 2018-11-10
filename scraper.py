@@ -1,8 +1,12 @@
+import json
 import time
 
 import scraperwiki
 import scrapy
 from scrapy.crawler import CrawlerProcess
+from slimit import ast
+from slimit.parser import Parser
+from slimit.visitors import nodevisitor
 
 
 TIMESTAMP = int(time.time())
@@ -59,7 +63,44 @@ class OcsSpider(scrapy.Spider):
         result['terpenes'] = response.xpath(
             './/p[@class="terpene__list"]/span/text()').extract()
 
-        # TODO: Availability
+        shopify_script_content = response.xpath(
+            '//script[contains(text(), "var meta =")]/text()').extract_first()
+        parser = Parser()
+        tree = parser.parse(shopify_script_content)
+        for node in nodevisitor.visit(tree):
+            if node.to_ecma().startswith('"variants":'):
+                variants = json.loads(node.right.to_ecma())
+                break
+        else:
+            raise Exception('No variants found')
+        variant_dict = {
+            d['id']: {'size': d['public_title'], 'price': d['price']}
+            for d in variants}
+
+        inventory_script_content = response.xpath(
+            '//script[contains(text(), "var inventory_quantities =")]'
+            '/text()').extract_first()
+        # slimit chokes on the full content, so just use the line we care about
+        inventory_quantities_line = (line for line in inventory_script_content.splitlines() if 'var inventory_quantities' in line).next()
+        parser = Parser()
+        tree = parser.parse(inventory_quantities_line)
+        for node in nodevisitor.visit(tree):
+            if node.to_ecma().startswith('inventory_quantities ='):
+                # This gets us inventory_quantities = {...}; the {...} uses
+                # integer keys, so we can't just json.loads it; pull out the
+                # values explicitly instead
+                for assign in node.initializer.children():
+                    id_, quantity = (
+                        int(assign.left.to_ecma()), int(assign.right.to_ecma()))
+                    if id_ not in variant_dict:
+                        raise Exception(
+                            '{} not in {}'.format(id_, variant_dict))
+                    variant_dict[id_]['availability'] = quantity
+        result['variants'] = {
+            variant['size']: {'price': variant['price'],
+                              'availability': variant['availability']}
+            for variant in variant_dict.values()
+        }
 
         # TODO: GTIN
         print(result)
@@ -74,6 +115,15 @@ class OcsSpider(scrapy.Spider):
             sqlite_data['{}_low'.format(range_type)] = low
             sqlite_data['{}_high'.format(range_type)] = high
         sqlite_data['terpenes'] = ','.join(result['terpenes'])
+
+        for size, variant_dict in result['variants'].items():
+            if size is None:
+                prefix = 'standalone_'
+            else:
+                prefix = '{}_'.format(size)
+            sqlite_data[prefix + 'price'] = variant_dict['price']
+            sqlite_data[prefix + 'availability'] = variant_dict['availability']
+
         scraperwiki.sqlite.save(unique_keys=['sku'], data=sqlite_data)
 
         sqlite_data['timestamp'] = TIMESTAMP
