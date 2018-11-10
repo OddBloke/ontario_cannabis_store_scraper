@@ -6,3 +6,4 @@
 -e git+http://github.com/openaustralia/scraperwiki-python.git@morph_defaults#egg=scraperwiki
 
 Scrapy==1.5.1
+slimit==0.8.1
