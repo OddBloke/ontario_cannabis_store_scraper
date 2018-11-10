@@ -67,7 +67,7 @@ def handler_for_timestamp(timestamp, debug=False):
             access_token_secret=os.environ['TWITTER_ACCESS_TOKEN_SECRET'])
         for (status, image) in statuses:
             print(api.PostUpdate(status, media=image))
-    return new_timestamp
+    return r.text, new_timestamp
 
 
 def handler(event, context):
@@ -77,7 +77,7 @@ def handler(event, context):
     assert len(response['Items']) == 1
     timestamp = response['Items'][0]['last_timestamp']
 
-    new_timestamp = handler_for_timestamp(timestamp)
+    response_text, new_timestamp = handler_for_timestamp(timestamp)
 
     if new_timestamp is not None:
         table.delete_item(Key={'last_timestamp': timestamp})
@@ -85,7 +85,7 @@ def handler(event, context):
 
     return {
         'statusCode': 200,
-        'body': r.text,
+        'body': response_text,
     }
 
 
