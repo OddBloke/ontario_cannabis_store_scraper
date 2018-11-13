@@ -58,7 +58,7 @@ def handler_for_timestamp(current_state, debug=False):
         else:
             status = _get_variant_tweet_content(entry)
         print(status, len(status))
-        statuses.append(status)
+        statuses.append((status, image))
         new_timestamp = entry['timestamp']
 
     item = {
