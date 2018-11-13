@@ -10,6 +10,10 @@ import twitter
 TWEET_PREFIX = 'Newly listed on Ontario Cannabis Store:\n{name} by {brand}'
 TWEET_SUFFIX = '\n#ocs\n{url}'
 
+LOW_STOCK_MSG = ('Ontario Cannabis Store are running low on:\n{name} by'
+                 ' {brand}\nOnly {combined_total} {units} left!'
+                 + TWEET_SUFFIX)
+
 
 def _format_status(entry, content):
     return (TWEET_PREFIX + content + TWEET_SUFFIX).format(**entry)
@@ -82,10 +86,10 @@ def handler_for_timestamp(current_state, debug=False):
             image = entry.get('image')
             if image is not None and not image.startswith('http'):
                 image = 'https:' + image
-            if entry.get('standalone_availability') is not None:
-                status = 'Ontario Cannabis Store are running low on:\n{name} by {brand}\nOnly {combined_total} units left!\n#ocs\n{url}'.format(**entry)
-            else:
-                status = 'Ontario Cannabis Store are running low on:\n{name} by {brand}\nOnly {combined_total} grams left!\n#ocs\n{url}'.format(**entry)
+            units = (
+                'units' if entry.get('standalone_availability') is not None
+                else 'grams')
+            status = LOW_STOCK_MSG.format(units=units, **entry)
             last_updates[entry['sku']] = int(datetime.now().strftime('%s'))
             print(status, len(status))
             statuses.append((status, image))
