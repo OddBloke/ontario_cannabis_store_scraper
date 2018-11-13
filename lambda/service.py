@@ -70,9 +70,8 @@ def handler_for_timestamp(current_state, debug=False):
         statuses.append((status, image))
         new_timestamp = entry['timestamp']
 
-    item = {
-        'last_timestamp': str(new_timestamp) if new_timestamp is not None else timestamp,
-    }
+    if new_timestamp is not None:
+        current_state['last_timestamp'] = new_timestamp
 
     if not statuses:
         # No new products, look for low-stock products to notify about
@@ -82,12 +81,13 @@ def handler_for_timestamp(current_state, debug=False):
         })
         print(r.json())
         update_cutoff = datetime.now() - timedelta(hours=24)
-        print('Update cutoff:', update_cutoff)
+        print 'Update cutoff:', update_cutoff
         last_updates = current_state.get('low_stock_updates', {})
         for entry in r.json():
-            last_update = last_updates.get(entry['sku'], 0)
-            print('Last update for', entry['sku'], 'at', last_update)
-            if datetime.fromtimestamp(last_update) >= update_cutoff:
+            last_update = datetime.fromtimestamp(
+                last_updates.get(entry['sku'], 0))
+            print 'Last update for', entry['sku'], 'at', last_update
+            if last_update >= update_cutoff:
                 print('Skipping')
                 continue
             image = _fix_image(entry.get('image'))
@@ -99,7 +99,7 @@ def handler_for_timestamp(current_state, debug=False):
             print(status, len(status))
             statuses.append((status, image))
             break  # We only want to put out one of these updates at a time
-        item['low_stock_updates'] = last_updates
+        current_state['low_stock_updates'] = last_updates
 
     if not debug:
         api = twitter.Api(
@@ -109,7 +109,7 @@ def handler_for_timestamp(current_state, debug=False):
             access_token_secret=os.environ['TWITTER_ACCESS_TOKEN_SECRET'])
         for (status, image) in statuses:
             print(api.PostUpdate(status, media=image))
-    return r.text, item
+    return r.text, current_state
 
 
 def handler(event, context):
