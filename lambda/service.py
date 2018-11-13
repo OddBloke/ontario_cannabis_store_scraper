@@ -33,13 +33,14 @@ def _get_variant_tweet_content(entry):
     return _format_status(entry, content)
 
 
-def handler_for_timestamp(timestamp, debug=False):
+def handler_for_timestamp(current_state, debug=False):
     # We're always asking for json because it's the easiest to deal with
     morph_api_url = "https://api.morph.io/OddBloke/ontario_cannabis_store_scraper/data.json"
 
     # Keep this key secret!
     morph_api_key = os.environ['MORPH_API_KEY']
 
+    timestamp = current_state['last_timestamp']
     r = requests.get(morph_api_url, params={
         'key': morph_api_key,
         'query': "SELECT * FROM history WHERE timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) AND url NOT IN (SELECT url FROM history WHERE timestamp = {})".format(timestamp),
@@ -60,6 +61,10 @@ def handler_for_timestamp(timestamp, debug=False):
         statuses.append(status)
         new_timestamp = entry['timestamp']
 
+    item = {
+        'last_timestamp': str(new_timestamp),
+    }
+
     if not debug:
         api = twitter.Api(
             consumer_key=os.environ['TWITTER_CONSUMER_KEY'],
@@ -68,7 +73,7 @@ def handler_for_timestamp(timestamp, debug=False):
             access_token_secret=os.environ['TWITTER_ACCESS_TOKEN_SECRET'])
         for (status, image) in statuses:
             print(api.PostUpdate(status, media=image))
-    return r.text, new_timestamp
+    return r.text, item
 
 
 def handler(event, context):
@@ -76,13 +81,14 @@ def handler(event, context):
     table = dynamodb.Table('ocs_tweeter')
     response = table.scan()
     assert len(response['Items']) == 1
-    timestamp = response['Items'][0]['last_timestamp']
+    current_state = response['Items'][0]
 
-    response_text, new_timestamp = handler_for_timestamp(timestamp)
+    response_text, new_state = handler_for_timestamp(current_state)
 
-    if new_timestamp is not None:
-        table.delete_item(Key={'last_timestamp': timestamp})
-        table.put_item(Item={'last_timestamp': str(new_timestamp)})
+    if new_state is not None:
+        table.delete_item(
+            Key={'last_timestamp': current_state['last_timestamp']})
+        table.put_item(Item=new_state)
 
     return {
         'statusCode': 200,
@@ -93,4 +99,4 @@ def handler(event, context):
 if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
-        handler_for_timestamp(sys.argv[1], debug=True)
+        handler_for_timestamp({'last_timestamp': sys.argv[1]}, debug=True)
