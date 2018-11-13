@@ -82,10 +82,13 @@ def handler_for_timestamp(current_state, debug=False):
         })
         print(r.json())
         update_cutoff = datetime.now() - timedelta(hours=24)
+        print('Update cutoff:', update_cutoff)
         last_updates = current_state.get('low_stock_updates', {})
         for entry in r.json():
             last_update = last_updates.get(entry['sku'], 0)
+            print('Last update for', entry['sku'], 'at', last_update)
             if datetime.fromtimestamp(last_update) >= update_cutoff:
+                print('Skipping')
                 continue
             image = _fix_image(entry.get('image'))
             units = (
