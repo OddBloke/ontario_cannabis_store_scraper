@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+from datetime import datetime, timedelta
 
 import boto3
 import requests
@@ -64,6 +65,32 @@ def handler_for_timestamp(current_state, debug=False):
     item = {
         'last_timestamp': str(new_timestamp) if new_timestamp is not None else timestamp,
     }
+
+    if not statuses:
+        # No new products, look for low-stock products to notify about
+        r = requests.get(morph_api_url, params={
+            'key': morph_api_key,
+            'query': "SELECT brand,sku,image,url,name,standalone_availability,COALESCE(total, 0) + COALESCE(standalone_availability, 0) AS combined_total FROM (SELECT brand,h.sku,image,url,name,standalone_availability,SUM(size*availability) as total FROM history h LEFT JOIN history_availability ha ON h.timestamp = ha.timestamp AND h.sku = ha.sku WHERE h.timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) GROUP BY h.sku) WHERE combined_total < 100 ORDER BY combined_total",
+        })
+        print(r.json())
+        update_cutoff = datetime.now() - timedelta(hours=24)
+        last_updates = current_state.get('low_stock_updates', {})
+        for entry in r.json():
+            last_update = last_updates.get(entry['sku'], 0)
+            if datetime.fromtimestamp(last_update) >= update_cutoff:
+                continue
+            image = entry.get('image')
+            if image is not None and not image.startswith('http'):
+                image = 'https:' + image
+            if entry.get('standalone_availability') is not None:
+                status = 'Ontario Cannabis Store are running low on:\n{name} by {brand}\nOnly {combined_total} units left!\n#ocs\n{url}'.format(**entry)
+            else:
+                status = 'Ontario Cannabis Store are running low on:\n{name} by {brand}\nOnly {combined_total} grams left!\n#ocs\n{url}'.format(**entry)
+            last_updates[entry['sku']] = int(datetime.now().strftime('%s'))
+            print(status, len(status))
+            statuses.append((status, image))
+            break  # We only want to put out one of these updates at a time
+        item['low_stock_updates'] = last_updates
 
     if not debug:
         api = twitter.Api(
