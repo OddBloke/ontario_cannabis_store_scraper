@@ -7,7 +7,7 @@ import requests
 import twitter
 
 
-TWEET_PREFIX = 'Newly listed on Ontario Cannabis Store:\n{name} by {brand}'
+TWEET_PREFIX = 'New availability on Ontario Cannabis Store:\n{name} by {brand}'
 TWEET_SUFFIX = '\n#ocs\n{url}'
 
 LOW_STOCK_MSG = ('Ontario Cannabis Store are running low on:\n{name} by'
