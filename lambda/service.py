@@ -15,6 +15,12 @@ LOW_STOCK_MSG = ('Ontario Cannabis Store are running low on:\n{name} by'
                  + TWEET_SUFFIX)
 
 
+def _fix_image(image):
+    if image is not None and not image.startswith('http'):
+        return 'https:' + image
+    return
+
+
 def _format_status(entry, content):
     return (TWEET_PREFIX + content + TWEET_SUFFIX).format(**entry)
 
@@ -55,9 +61,7 @@ def handler_for_timestamp(current_state, debug=False):
     statuses = []
     new_timestamp = None
     for entry in r.json():
-        image = entry.get('image')
-        if image is not None and not image.startswith('http'):
-            image = 'https:' + image
+        image = _fix_image(entry.get('image'))
         if entry['standalone_price'] is not None:
             status = _get_standalone_tweet_content(entry)
         else:
@@ -83,9 +87,7 @@ def handler_for_timestamp(current_state, debug=False):
             last_update = last_updates.get(entry['sku'], 0)
             if datetime.fromtimestamp(last_update) >= update_cutoff:
                 continue
-            image = entry.get('image')
-            if image is not None and not image.startswith('http'):
-                image = 'https:' + image
+            image = _fix_image(entry.get('image'))
             units = (
                 'units' if entry.get('standalone_availability') is not None
                 else 'grams')
