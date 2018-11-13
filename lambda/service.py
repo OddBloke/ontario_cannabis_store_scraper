@@ -62,7 +62,7 @@ def handler_for_timestamp(current_state, debug=False):
         new_timestamp = entry['timestamp']
 
     item = {
-        'last_timestamp': str(new_timestamp),
+        'last_timestamp': str(new_timestamp) if new_timestamp is not None else timestamp,
     }
 
     if not debug:
