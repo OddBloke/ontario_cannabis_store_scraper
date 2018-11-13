@@ -7,6 +7,71 @@ from scrapy.crawler import CrawlerProcess
 from slimit import ast
 from slimit.parser import Parser
 from slimit.visitors import nodevisitor
+from sqlalchemy import create_engine
+from sqlalchemy import Column, Float, Integer, Text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+
+Base = declarative_base()
+
+
+class ProductMixin(object):
+    sku = Column(Text, primary_key=True)
+    url = Column(Text)
+    # TODO: Make brand a ForeignKey
+    brand = Column(Text)
+    name = Column(Text)
+    price = Column(Float)
+    description = Column(Text)
+    # TODO: Make type a ForeignKey
+    type = Column(Text)
+    image = Column(Text)
+    plant_type = Column(Text)
+    terpenes = Column(Text)
+
+    thc_low = Column(Integer)
+    thc_high = Column(Integer)
+    cbd_low = Column(Integer)
+    cbd_high = Column(Integer)
+
+    standalone_price = Column(Integer)
+    standalone_availability = Column(Integer)
+    _0_5g_price = Column('0.5g_price', Integer)
+    _0_5g_availability = Column('0.5g_availability', Integer)
+    _1g_price = Column('1g_price', Integer)
+    _1g_availability = Column('1g_availability', Integer)
+    _1_25g_price = Column('1.25g_price', Integer)
+    _1_25g_availability = Column('1.25g_availability', Integer)
+    _1_5g_price = Column('1.5g_price', Integer)
+    _1_5g_availability = Column('1.5g_availability', Integer)
+    _2_5g_price = Column('2.5g_price', Integer)
+    _2_5g_availability = Column('2.5g_availability', Integer)
+    _3_5g_price = Column('3.5g_price', Integer)
+    _3_5g_availability = Column('3.5g_availability', Integer)
+    _5g_price = Column('5g_price', Integer)
+    _5g_availability = Column('5g_availability', Integer)
+    _7g_price = Column('7g_price', Integer)
+    _7g_availability = Column('7g_availability', Integer)
+    _15g_price = Column('15g_price', Integer)
+    _15g_availability = Column('15g_availability', Integer)
+
+
+class ProductListing(Base, ProductMixin):
+    __tablename__ = 'data'
+
+
+class HistoricalListing(Base, ProductMixin):
+    __tablename__ = 'history'
+
+    timestamp = Column(Integer, primary_key=True)
+
+
+def _get_db_session():
+    engine = create_engine('sqlite:///data.sqlite')
+    Base.metadata.create_all(engine)
+    return sessionmaker(engine)()
+
 
 
 TIMESTAMP = int(time.time())
@@ -126,16 +191,16 @@ class OcsSpider(scrapy.Spider):
             if size is None:
                 prefix = 'standalone_'
             else:
-                prefix = '{}_'.format(size)
+                prefix = '_{}_'.format(size.replace('.', '_'))
             sqlite_data[prefix + 'price'] = variant_dict['price']
             sqlite_data[prefix + 'availability'] = variant_dict['availability']
 
-        scraperwiki.sqlite.save(unique_keys=['sku'], data=sqlite_data)
+        session = _get_db_session()
+        session.add(ProductListing(**sqlite_data))
 
         sqlite_data['timestamp'] = TIMESTAMP
-        scraperwiki.sqlite.save(unique_keys=['timestamp', 'sku'],
-                                data=sqlite_data,
-                                table_name='history')
+        session.add(HistoricalListing(**sqlite_data))
+        session.commit()
 
 
 def do_fixups():
