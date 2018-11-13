@@ -8,7 +8,8 @@ from slimit import ast
 from slimit.parser import Parser
 from slimit.visitors import nodevisitor
 from sqlalchemy import create_engine
-from sqlalchemy import Column, Float, Integer, Text
+from sqlalchemy import (
+    Column, Float, ForeignKeyConstraint, Integer, Table, Text)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -65,6 +66,22 @@ class HistoricalListing(Base, ProductMixin):
     __tablename__ = 'history'
 
     timestamp = Column(Integer, primary_key=True)
+
+
+class HistoricalProductAvailability(Base):
+    # This table stores the availability data in way that allows for easier
+    # counting of remaining quantities
+
+    __tablename__ = 'history_availability'
+    timestamp = Column(Integer, nullable=False,primary_key=True)
+    sku = Column(Text, nullable=False, primary_key=True)
+    size = Column(Float, primary_key=True)
+    availability = Column(Integer)
+
+    __table_args__ = (
+        ForeignKeyConstraint(['timestamp', 'sku'],
+                             ['history.timestamp', 'history.sku']),
+    )
 
 
 def _get_db_session():
@@ -187,6 +204,8 @@ class OcsSpider(scrapy.Spider):
             sqlite_data['{}_high'.format(range_type)] = high
         sqlite_data['terpenes'] = ','.join(result['terpenes'])
 
+        session = _get_db_session()
+
         for size, variant_dict in result['variants'].items():
             if size is None:
                 prefix = 'standalone_'
@@ -194,8 +213,14 @@ class OcsSpider(scrapy.Spider):
                 prefix = '_{}_'.format(size.replace('.', '_'))
             sqlite_data[prefix + 'price'] = variant_dict['price']
             sqlite_data[prefix + 'availability'] = variant_dict['availability']
+            if size is not None:
+                session.add(HistoricalProductAvailability(
+                    timestamp=TIMESTAMP,
+                    sku=result['sku'],
+                    size=float(size.strip('g')),
+                    availability=int(variant_dict['availability']),
+                ))
 
-        session = _get_db_session()
         session.add(ProductListing(**sqlite_data))
 
         sqlite_data['timestamp'] = TIMESTAMP
