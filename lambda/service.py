@@ -71,7 +71,7 @@ def handler_for_timestamp(current_state, debug=False):
         new_timestamp = entry['timestamp']
 
     if new_timestamp is not None:
-        current_state['last_timestamp'] = new_timestamp
+        current_state['last_timestamp'] = str(new_timestamp)
 
     if not statuses:
         # No new products, look for low-stock products to notify about
@@ -118,12 +118,13 @@ def handler(event, context):
     response = table.scan()
     assert len(response['Items']) == 1
     current_state = response['Items'][0]
+    last_timestamp = current_state['last_timestamp']
 
     response_text, new_state = handler_for_timestamp(current_state)
 
     if new_state is not None:
         table.delete_item(
-            Key={'last_timestamp': current_state['last_timestamp']})
+            Key={'last_timestamp': last_timestamp})
         table.put_item(Item=new_state)
 
     return {
