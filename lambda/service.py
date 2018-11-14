@@ -136,4 +136,4 @@ def handler(event, context):
 if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
-        handler_for_timestamp({'last_timestamp': sys.argv[1]}, debug=True)
+        print(handler_for_timestamp({'last_timestamp': sys.argv[1]}, debug=True))
