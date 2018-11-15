@@ -14,7 +14,7 @@ def _get_total_datapoints(session):
         func.sum(HistoricalProductAvailability.size *
                  HistoricalProductAvailability.availability).label('amount')
     ).group_by(HistoricalProductAvailability.timestamp)
-    print str(query)
+    print(str(query))
     data_points = []
     for instance in query:
         instance_dict = instance._asdict()
@@ -30,7 +30,8 @@ def _get_per_brand_datapoints(session):
         HistoricalListing.brand.label('label'),
         func.sum(HistoricalProductAvailability.size *
                  HistoricalProductAvailability.availability).label('amount')
-    ).join(HistoricalListing).group_by(HistoricalListing.brand, HistoricalListing.timestamp)
+    ).join(HistoricalListing).group_by(HistoricalListing.brand,
+                                       HistoricalListing.timestamp)
     print(str(query))
     data_points = []
     for instance in query:
@@ -38,6 +39,7 @@ def _get_per_brand_datapoints(session):
         instance_dict['timestamp'] *= 1000
         data_points.append(instance_dict)
     return data_points
+
 
 def main():
     session = _get_db_session()
@@ -47,7 +49,8 @@ def main():
         template = jinja2.Template(template_file.read())
     with open('output.html', 'w') as output_file:
         output_file.write(
-            template.render({'data_points': json.dumps(data_points, indent=1)}))
+            template.render(
+                {'data_points': json.dumps(data_points, indent=1)}))
 
 
 if __name__ == '__main__':
