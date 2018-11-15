@@ -1,3 +1,4 @@
+import datetime
 import json
 import time
 
@@ -254,6 +255,7 @@ class OcsSpider(scrapy.Spider):
 
 
 def do_fixups():
+    print datetime.datetime.now().isoformat(), 'Starting fixups...'
     session = _get_db_session()
     query = session.query(
         HistoricalListing
