@@ -18,11 +18,11 @@ Base = declarative_base()
 
 
 class ProductMixin(object):
-    sku = Column(Text, primary_key=True)
+    sku = Column(Text)
     url = Column(Text)
     # TODO: Make brand a ForeignKey
-    brand = Column(Text)
-    name = Column(Text)
+    brand = Column(Text, primary_key=True)
+    name = Column(Text, primary_key=True)
     price = Column(Float)
     description = Column(Text)
     # TODO: Make type a ForeignKey
@@ -81,6 +81,24 @@ class HistoricalProductAvailability(Base):
     __table_args__ = (
         ForeignKeyConstraint(['timestamp', 'sku'],
                              ['history.timestamp', 'history.sku']),
+    )
+
+
+class NewHistoricalProductAvailability(Base):
+    # This table stores the availability data in way that allows for easier
+    # counting of remaining quantities
+
+    __tablename__ = 'history_availability_new'
+    timestamp = Column(Integer, nullable=False,primary_key=True)
+    brand = Column(Text, nullable=False, primary_key=True)
+    name = Column(Text, nullable=False, primary_key=True)
+    size = Column(Float, primary_key=True)
+    availability = Column(Integer)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ['timestamp', 'brand', 'name'],
+            ['history.timestamp', 'history.brand', 'history.name']),
     )
 
 
@@ -220,6 +238,13 @@ class OcsSpider(scrapy.Spider):
                     size=float(size.strip('g')),
                     availability=int(variant_dict['availability']),
                 ))
+                session.add(NewHistoricalProductAvailability(
+                    timestamp=TIMESTAMP,
+                    brand=result['brand'],
+                    name=result['name'],
+                    size=float(size.strip('g')),
+                    availability=int(variant_dict['availability']),
+                ))
 
         session.add(ProductListing(**sqlite_data))
 
@@ -229,7 +254,28 @@ class OcsSpider(scrapy.Spider):
 
 
 def do_fixups():
-    pass
+    session = _get_db_session()
+    query = session.query(
+        HistoricalListing
+    ).outerjoin(HistoricalProductAvailability).filter(
+        HistoricalProductAvailability.availability == None).filter(
+            HistoricalListing.standalone_availability == None)
+    query = session.query(
+        HistoricalProductAvailability,
+        HistoricalListing.brand,
+        HistoricalListing.name,
+    ).join(HistoricalListing)
+    for (hpa, brand, name) in query:
+        session.add(
+            NewHistoricalProductAvailability(timestamp=hpa.timestamp,
+                                             brand=brand,
+                                             name=name,
+                                             size=hpa.size,
+                                             availability=hpa.availability)
+        )
+
+    session.commit()
+
 
 if __name__ == '__main__':
     do_fixups()
