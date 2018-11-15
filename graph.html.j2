@@ -1,0 +1,38 @@
+<html>
+  <head>
+    <script src="//cdn.jsdelivr.net/d3js/latest/d3.min.js" charset="utf-8"></script>
+    <script src="//cdn.jsdelivr.net/npm/taucharts@2/dist/taucharts.min.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/taucharts@2/dist/taucharts.min.css">
+  </head>
+  <body>
+    <div id='line'>
+
+    <script>
+
+var datasource = {{ data_points }};
+var chart = new Taucharts.Chart({
+    data: datasource,
+    type: 'line',
+    x: 'timestamp',
+    y: 'amount',
+    color: 'label',
+    dimensions: {
+      timestamp: {
+        type: 'measure',
+        scale: 'time',
+      },
+      amount: {
+        type: 'measure',
+      },
+    },
+    plugins: [
+        Taucharts.api.plugins.get('tooltip')(),
+        Taucharts.api.plugins.get('quick-filter')(['timestamp']),
+        Taucharts.api.plugins.get('legend')(),
+    ]
+});
+chart.renderTo('#line');
+    </script>
+  </body>
+</html>
+
