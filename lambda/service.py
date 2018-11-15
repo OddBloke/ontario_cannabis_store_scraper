@@ -124,7 +124,7 @@ def handler_for_timestamp(current_state, debug=False):
             'query': "SELECT brand,sku,image,url,name,standalone_availability,COALESCE(total, 0) + COALESCE(standalone_availability, 0) AS combined_total FROM (SELECT brand,h.sku,image,url,name,standalone_availability,SUM(size*availability) as total FROM history h LEFT JOIN history_availability ha ON h.timestamp = ha.timestamp AND h.sku = ha.sku WHERE h.timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) GROUP BY h.sku) WHERE combined_total < 100 ORDER BY combined_total",
         })
         print(r.json())
-        update_cutoff = datetime.now() - timedelta(hours=24)
+        update_cutoff = datetime.now() - timedelta(hours=8)
         print 'Update cutoff:', update_cutoff
         last_updates = current_state.get('low_stock_updates', {})
         for entry in r.json():
