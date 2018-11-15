@@ -76,7 +76,9 @@ def _get_variant_tweet_content(entry):
     # Determine the relevant variants
     present_variants = sorted([
         key.split('_')[0] for key in entry
-        if key.endswith('_price') and entry[key] is not None])
+        if key.endswith('_price') and entry[key] is not None],
+        key=lambda variant: float(variant[:variant.find('g')]),
+    )
     content = '\n'
     for variant in present_variants:
         availability = entry[variant + '_availability']
