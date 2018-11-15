@@ -265,7 +265,16 @@ def do_fixups():
         HistoricalListing.brand,
         HistoricalListing.name,
     ).join(HistoricalListing)
+    n = 1000
     for (hpa, brand, name) in query:
+        if n == 0:
+            break
+        query = session.query(
+            NewHistoricalProductAvailability).filter_by(
+                brand=brand, name=name, timestamp=hpa.timestamp)
+        if query.first() is not None:
+            # Already done
+            continue
         session.add(
             NewHistoricalProductAvailability(timestamp=hpa.timestamp,
                                              brand=brand,
@@ -273,7 +282,10 @@ def do_fixups():
                                              size=hpa.size,
                                              availability=hpa.availability)
         )
+        n -= 1
 
+    if n > 0:
+        print("!!! MIGRATION COMPLETE !!!", n)
     session.commit()
 
 
