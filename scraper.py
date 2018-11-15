@@ -231,7 +231,7 @@ class OcsSpider(scrapy.Spider):
             else:
                 prefix = '_{}_'.format(size.replace('.', '_'))
             if size in ['0.5g', '1g', '1.25g', '1.5g', '2.5g', '3.5g', '5g',
-                        '7g', '15g']:
+                        '7g', '15g', None]:
                 # Only populate the legacy sizes
                 sqlite_data[prefix + 'price'] = variant_dict['price']
                 sqlite_data[prefix + 'availability'] = (
