@@ -229,6 +229,37 @@ class OcsSpider(scrapy.Spider):
 
 
 def do_fixups():
+    session = _get_db_session()
+    query = session.query(
+        HistoricalListing
+    ).outerjoin(HistoricalProductAvailability).filter(
+        HistoricalProductAvailability.availability == None).filter(
+            HistoricalListing.standalone_availability == None)
+    for item in query:
+        for amount, size in [
+            (item._0_5g_availability, 0.5),
+            (item._1g_availability, 1),
+            (item._1_25g_availability, 1.25),
+            (item._1_5g_availability, 1.5),
+            (item._2_5g_availability, 2.5),
+            (item._3_5g_availability, 3.5),
+            (item._5g_availability, 5),
+            (item._7g_availability, 7),
+            (item._15g_availability, 15),
+        ]:
+            if amount is None or amount == 0:
+                continue
+            session.add(
+                HistoricalProductAvailability(
+                    timestamp=item.timestamp,
+                    sku=item.sku,
+                    size=size,
+                    availability=amount,
+                )
+            )
+    if session.new:
+        session.commit()
+
     # Fix early timestamp bug (fixed in commit 2572484)
     scraperwiki.sql.execute(
         'UPDATE history SET timestamp = 1541547120'
