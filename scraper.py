@@ -267,7 +267,7 @@ def do_fixups():
         HistoricalListing.brand,
         HistoricalListing.name,
     ).join(HistoricalListing)
-    n = 1000
+    n = 6000
     for (hpa, brand, name) in query:
         if n == 0:
             break
@@ -292,9 +292,9 @@ def do_fixups():
 
 
 if __name__ == '__main__':
-    do_fixups()
     # data should only contain the data from the latest run
     scraperwiki.sqlite.execute('DROP TABLE data')
     process = CrawlerProcess()
     process.crawl(OcsSpider)
     process.start()
+    do_fixups()
