@@ -121,7 +121,7 @@ def handler_for_timestamp(current_state, debug=False):
         # No new products, look for low-stock products to notify about
         r = requests.get(morph_api_url, params={
             'key': morph_api_key,
-            'query': "SELECT brand,sku,image,url,name,standalone_availability,COALESCE(total, 0) + COALESCE(standalone_availability, 0) AS combined_total FROM (SELECT brand,h.sku,image,url,name,standalone_availability,SUM(size*availability) as total FROM history h LEFT JOIN history_availability ha ON h.timestamp = ha.timestamp AND h.sku = ha.sku WHERE h.timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) GROUP BY h.sku) WHERE combined_total < 100 ORDER BY combined_total",
+            'query': "SELECT brand,sku,image,url,name,standalone_availability,COALESCE(total, 0) + COALESCE(standalone_availability, 0) AS combined_total FROM (SELECT h.brand,h.name,h.sku,image,url,standalone_availability,SUM(size*availability) as total FROM history h LEFT JOIN history_availability ha ON h.timestamp = ha.timestamp AND h.brand = ha.brand AND h.name = ha.name WHERE h.timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) GROUP BY h.sku) WHERE combined_total < 100 ORDER BY combined_total",
         })
         print(r.json())
         update_cutoff = datetime.now() - timedelta(hours=8)
