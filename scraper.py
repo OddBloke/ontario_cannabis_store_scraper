@@ -1,3 +1,4 @@
+import csv
 import datetime
 import json
 import time
@@ -10,7 +11,7 @@ from slimit.parser import Parser
 from slimit.visitors import nodevisitor
 from sqlalchemy import create_engine
 from sqlalchemy import (
-    Column, Float, ForeignKeyConstraint, Integer, Table, Text)
+    Column, Float, ForeignKeyConstraint, Integer, Table, Text, and_, exists)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -241,7 +242,38 @@ class OcsSpider(scrapy.Spider):
 
 def do_fixups():
     print datetime.datetime.now().isoformat(), 'Starting fixups...'
-    scraperwiki.sql.execute('ALTER TABLE history_availability ADD COLUMN price integer')
+    session = _get_db_session()
+    existing_lines = list(
+        session.query(HistoricalProductAvailability.timestamp,
+                      HistoricalProductAvailability.brand,
+                      HistoricalProductAvailability.name,
+                      HistoricalProductAvailability.size))
+    n = 1000
+    with open('fixup.csv') as f:
+        reader = csv.DictReader(f)
+        for record in reader:
+            if n == 0: break
+            brand, name = session.query(
+                HistoricalListing.brand.label('brand'),
+                HistoricalListing.name.label('name')).filter_by(
+                    sku=record['sku']).first()
+            needle = (
+                int(record['timestamp']), brand, name, float(record['size']))
+            if needle in existing_lines:
+                continue
+            session.add(
+                HistoricalProductAvailability(
+                    timestamp=record['timestamp'],
+                    brand=brand,
+                    name=name,
+                    size=record['size'],
+                    availability=record['availability'])
+            )
+            n -= 1
+            print(n)
+    session.commit()
+    if n > 0:
+        print('!!! MIGRATION COMPLETE !!!')
 
 
 if __name__ == '__main__':
