@@ -56,6 +56,18 @@ LOW_STOCK_MSG = ('Ontario Cannabis Store are running low on:\n{name} by'
                  + TWEET_SUFFIX)
 
 
+def _do_request(query):
+    morph_api_url = "https://api.morph.io/OddBloke/ontario_cannabis_store_scraper/data.json"
+    morph_api_key = os.environ['MORPH_API_KEY']
+    r = requests.get(morph_api_url, params={
+        'key': morph_api_key,
+        'query': query,
+    })
+    ret = r.json()
+    print(ret)
+    return ret
+
+
 def _fix_image(image):
     if image is not None and not image.startswith('http'):
         return 'https:' + image
@@ -89,22 +101,15 @@ def _get_variant_tweet_content(entry):
 
 
 def handler_for_timestamp(current_state, debug=False):
-    # We're always asking for json because it's the easiest to deal with
-    morph_api_url = "https://api.morph.io/OddBloke/ontario_cannabis_store_scraper/data.json"
-
-    # Keep this key secret!
-    morph_api_key = os.environ['MORPH_API_KEY']
-
     timestamp = current_state['last_timestamp']
-    r = requests.get(morph_api_url, params={
-        'key': morph_api_key,
-        'query': "SELECT * FROM history WHERE timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) AND url NOT IN (SELECT url FROM history WHERE timestamp = {})".format(timestamp),
-    })
-    print(r.json())
+    data = _do_request(
+        'SELECT * FROM history'
+        ' WHERE timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1)'
+        ' AND url NOT IN (SELECT url FROM history WHERE timestamp = {})'.format(timestamp))
 
     statuses = []
     new_timestamp = None
-    for entry in r.json():
+    for entry in data:
         image = _fix_image(entry.get('image'))
         if entry['standalone_price'] is not None:
             status = _get_standalone_tweet_content(entry)
@@ -119,15 +124,13 @@ def handler_for_timestamp(current_state, debug=False):
 
     if not statuses:
         # No new products, look for low-stock products to notify about
-        r = requests.get(morph_api_url, params={
-            'key': morph_api_key,
-            'query': "SELECT brand,sku,image,url,name,standalone_availability,COALESCE(total, 0) + COALESCE(standalone_availability, 0) AS combined_total FROM (SELECT h.brand,h.name,h.sku,image,url,standalone_availability,SUM(size*availability) as total FROM history h LEFT JOIN history_availability ha ON h.timestamp = ha.timestamp AND h.brand = ha.brand AND h.name = ha.name WHERE h.timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) GROUP BY h.sku) WHERE combined_total < 100 ORDER BY combined_total",
-        })
-        print(r.json())
+        data = _do_request(
+            'SELECT brand,sku,image,url,name,standalone_availability,COALESCE(total, 0) + COALESCE(standalone_availability, 0) AS combined_total FROM (SELECT h.brand,h.name,h.sku,image,url,standalone_availability,SUM(size*availability) as total FROM history h LEFT JOIN history_availability ha ON h.timestamp = ha.timestamp AND h.brand = ha.brand AND h.name = ha.name WHERE h.timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) GROUP BY h.sku) WHERE combined_total < 100 ORDER BY combined_total',
+        )
         update_cutoff = datetime.now() - timedelta(hours=8)
         print 'Update cutoff:', update_cutoff
         last_updates = current_state.get('low_stock_updates', {})
-        for entry in r.json():
+        for entry in data:
             last_update = datetime.fromtimestamp(
                 last_updates.get(entry['sku'], 0))
             print 'Last update for', entry['sku'], 'at', last_update
@@ -155,7 +158,7 @@ def handler_for_timestamp(current_state, debug=False):
             access_token_secret=os.environ['TWITTER_ACCESS_TOKEN_SECRET'])
         for (status, image) in statuses:
             print(api.PostUpdate(status, media=image))
-    return r.text, current_state
+    return str(data), current_state
 
 
 def handler(event, context):
