@@ -75,22 +75,6 @@ class HistoricalProductAvailability(Base):
 
     __tablename__ = 'history_availability'
     timestamp = Column(Integer, nullable=False,primary_key=True)
-    sku = Column(Text, nullable=False, primary_key=True)
-    size = Column(Float, primary_key=True)
-    availability = Column(Integer)
-
-    __table_args__ = (
-        ForeignKeyConstraint(['timestamp', 'sku'],
-                             ['history.timestamp', 'history.sku']),
-    )
-
-
-class NewHistoricalProductAvailability(Base):
-    # This table stores the availability data in way that allows for easier
-    # counting of remaining quantities
-
-    __tablename__ = 'history_availability_new'
-    timestamp = Column(Integer, nullable=False,primary_key=True)
     brand = Column(Text, nullable=False, primary_key=True)
     name = Column(Text, nullable=False, primary_key=True)
     size = Column(Float, primary_key=True)
@@ -239,12 +223,6 @@ class OcsSpider(scrapy.Spider):
             if size is not None:
                 session.add(HistoricalProductAvailability(
                     timestamp=TIMESTAMP,
-                    sku=result['sku'],
-                    size=float(size.strip('g')),
-                    availability=int(variant_dict['availability']),
-                ))
-                session.add(NewHistoricalProductAvailability(
-                    timestamp=TIMESTAMP,
                     brand=result['brand'],
                     name=result['name'],
                     size=float(size.strip('g')),
@@ -260,45 +238,16 @@ class OcsSpider(scrapy.Spider):
 
 def do_fixups():
     print datetime.datetime.now().isoformat(), 'Starting fixups...'
-    session = _get_db_session()
-    query = session.query(
-        HistoricalListing
-    ).outerjoin(HistoricalProductAvailability).filter(
-        HistoricalProductAvailability.availability == None).filter(
-            HistoricalListing.standalone_availability == None)
-    query = session.query(
-        HistoricalProductAvailability,
-        HistoricalListing.brand,
-        HistoricalListing.name,
-    ).join(HistoricalListing)
-    n = 6000
-    for (hpa, brand, name) in query:
-        if n == 0:
-            break
-        query = session.query(
-            NewHistoricalProductAvailability).filter_by(
-                brand=brand, name=name, timestamp=hpa.timestamp)
-        if query.first() is not None:
-            # Already done
-            continue
-        session.add(
-            NewHistoricalProductAvailability(timestamp=hpa.timestamp,
-                                             brand=brand,
-                                             name=name,
-                                             size=hpa.size,
-                                             availability=hpa.availability)
-        )
-        n -= 1
 
-    if n > 0:
-        print("!!! MIGRATION COMPLETE !!!", n)
-    session.commit()
+    scraperwiki.sql.execute('DROP TABLE history_availability')
+    scraperwiki.sql.execute(
+        'ALTER TABLE history_availability_new RENAME TO history_availability')
 
 
 if __name__ == '__main__':
+    do_fixups()
     # data should only contain the data from the latest run
     scraperwiki.sqlite.execute('DROP TABLE data')
     process = CrawlerProcess()
     process.crawl(OcsSpider)
     process.start()
-    do_fixups()
