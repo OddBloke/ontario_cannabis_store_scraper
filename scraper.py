@@ -239,10 +239,6 @@ class OcsSpider(scrapy.Spider):
 def do_fixups():
     print datetime.datetime.now().isoformat(), 'Starting fixups...'
 
-    scraperwiki.sql.execute('DROP TABLE history_availability')
-    scraperwiki.sql.execute(
-        'ALTER TABLE history_availability_new RENAME TO history_availability')
-
 
 if __name__ == '__main__':
     do_fixups()
