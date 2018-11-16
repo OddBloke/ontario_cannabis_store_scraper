@@ -79,6 +79,8 @@ class HistoricalProductAvailability(Base):
     name = Column(Text, nullable=False, primary_key=True)
     size = Column(Float, primary_key=True)
     availability = Column(Integer)
+    # TODO: Backfill prices from history table
+    price = Column(Integer)
 
     __table_args__ = (
         ForeignKeyConstraint(
@@ -227,6 +229,7 @@ class OcsSpider(scrapy.Spider):
                     name=result['name'],
                     size=float(size.strip('g')),
                     availability=int(variant_dict['availability']),
+                    price=int(variant_dict['price']),
                 ))
 
         session.add(ProductListing(**sqlite_data))
@@ -238,6 +241,7 @@ class OcsSpider(scrapy.Spider):
 
 def do_fixups():
     print datetime.datetime.now().isoformat(), 'Starting fixups...'
+    scraperwiki.sql.execute('ALTER TABLE history_availability ADD COLUMN price integer')
 
 
 if __name__ == '__main__':
