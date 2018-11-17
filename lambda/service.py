@@ -103,6 +103,34 @@ def _get_variant_tweet_content(entry):
     return _format_status(entry, content)
 
 
+def low_stock_tweets(current_state):
+    statuses = []
+    data = _do_request(
+        'SELECT brand,sku,image,url,name,standalone_availability,COALESCE(total, 0) + COALESCE(standalone_availability, 0) AS combined_total FROM (SELECT h.brand,h.name,h.sku,image,url,standalone_availability,SUM(size*availability) as total FROM history h LEFT JOIN history_availability ha ON h.timestamp = ha.timestamp AND h.brand = ha.brand AND h.name = ha.name WHERE h.timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) GROUP BY h.sku) WHERE combined_total < 100 ORDER BY combined_total',
+    )
+    update_cutoff = datetime.now() - timedelta(hours=8)
+    print 'Update cutoff:', update_cutoff
+    last_updates = current_state.get('low_stock_updates', {})
+    for entry in data:
+        last_update = datetime.fromtimestamp(last_updates.get(entry['sku'], 0))
+        print 'Last update for', entry['sku'], 'at', last_update
+        if last_update >= update_cutoff:
+            print('Skipping')
+            continue
+        image = _fix_image(entry.get('image'))
+        units = ('units' if entry.get('standalone_availability') is not None
+                 else 'grams')
+        entry['brand_twitter'] = BRAND_TWITTERS.get(entry['brand'],
+                                                    entry['brand'])
+        status = LOW_STOCK_MSG.format(units=units, **entry)
+        last_updates[entry['sku']] = int(datetime.now().strftime('%s'))
+        print(status, len(status))
+        statuses.append((status, image))
+        break  # We only want to put out one of these updates at a time
+    current_state['low_stock_updates'] = last_updates
+    return statuses, current_state
+
+
 def handler_for_timestamp(current_state, debug=False):
     timestamp = current_state['last_timestamp']
     data = _do_request(
@@ -127,31 +155,7 @@ def handler_for_timestamp(current_state, debug=False):
 
     if not statuses:
         # No new products, look for low-stock products to notify about
-        data = _do_request(
-            'SELECT brand,sku,image,url,name,standalone_availability,COALESCE(total, 0) + COALESCE(standalone_availability, 0) AS combined_total FROM (SELECT h.brand,h.name,h.sku,image,url,standalone_availability,SUM(size*availability) as total FROM history h LEFT JOIN history_availability ha ON h.timestamp = ha.timestamp AND h.brand = ha.brand AND h.name = ha.name WHERE h.timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) GROUP BY h.sku) WHERE combined_total < 100 ORDER BY combined_total',
-        )
-        update_cutoff = datetime.now() - timedelta(hours=8)
-        print 'Update cutoff:', update_cutoff
-        last_updates = current_state.get('low_stock_updates', {})
-        for entry in data:
-            last_update = datetime.fromtimestamp(
-                last_updates.get(entry['sku'], 0))
-            print 'Last update for', entry['sku'], 'at', last_update
-            if last_update >= update_cutoff:
-                print('Skipping')
-                continue
-            image = _fix_image(entry.get('image'))
-            units = (
-                'units' if entry.get('standalone_availability') is not None
-                else 'grams')
-            entry['brand_twitter'] = BRAND_TWITTERS.get(entry['brand'],
-                                                        entry['brand'])
-            status = LOW_STOCK_MSG.format(units=units, **entry)
-            last_updates[entry['sku']] = int(datetime.now().strftime('%s'))
-            print(status, len(status))
-            statuses.append((status, image))
-            break  # We only want to put out one of these updates at a time
-        current_state['low_stock_updates'] = last_updates
+        current_state, statuses = low_stock_tweets(current_state)
 
     if not debug:
         api = twitter.Api(
