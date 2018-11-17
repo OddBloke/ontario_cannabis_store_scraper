@@ -140,10 +140,12 @@ def fun_fact_tweets(current_state):
             "SELECT old.brand,old.name,old.image,old.total AS before,new.total AS after,(COALESCE(old.total, 0)-COALESCE(new.total, 0))/1000 as sold FROM (SELECT history.brand,history.name,history.image,SUM(availability*size) AS total FROM history JOIN history_availability ON history.brand = history_availability.brand AND history.name = history_availability.name AND history.timestamp = history_availability.timestamp AND history.timestamp = (SELECT DISTINCT timestamp FROM history WHERE timestamp < strftime('%s', 'now', '-1 day') ORDER BY timestamp DESC LIMIT 1) GROUP BY history.brand, history.name) old LEFT JOIN (SELECT history.brand,history.name,SUM(availability*size) AS total FROM history JOIN history_availability ON history.brand = history_availability.brand AND history.name = history_availability.name AND history.timestamp = history_availability.timestamp AND history.timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) GROUP BY history.brand, history.name) new ON old.brand = new.brand AND old.name = new.name ORDER BY sold DESC LIMIT 3"
         )
         status = 'Top selling strains on Ontario Cannabis Store (last 24 hours):\n'
+        image = None
         for entry in data:
             entry['brand_twitter'] = BRAND_TWITTERS.get(entry['brand'],
                                                         entry['brand'])
-            image = _fix_image(entry.get('image'))
+            if image is None:
+                image = _fix_image(entry.get('image'))
             status += '{name} by {brand_twitter} ({sold:.3f}kg sold)\n'.format(
                 **entry)
         status += '\n#ocs'
