@@ -149,7 +149,8 @@ def fun_fact_tweets(current_state):
         status += '\n#ocs'
         print(status, len(status))
         last_updates['24h_best_sellers'] = int(datetime.now().strftime('%s'))
-        statuses = [status]
+        statuses = [(status, image)]
+        print(statuses)
     current_state['fun_facts'] = last_updates
     return current_state, statuses
 
