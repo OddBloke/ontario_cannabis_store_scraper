@@ -128,7 +128,7 @@ def low_stock_tweets(current_state):
         statuses.append((status, image))
         break  # We only want to put out one of these updates at a time
     current_state['low_stock_updates'] = last_updates
-    return statuses, current_state
+    return current_state, statuses
 
 
 def handler_for_timestamp(current_state, debug=False):
