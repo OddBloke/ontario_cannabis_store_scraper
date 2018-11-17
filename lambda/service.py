@@ -86,17 +86,20 @@ def _get_standalone_tweet_content(entry):
 
 def _get_variant_tweet_content(entry):
     # Determine the relevant variants
-    present_variants = sorted([
-        key.split('_')[0] for key in entry
-        if key.endswith('_price') and entry[key] is not None],
-        key=lambda variant: float(variant[:variant.find('g')]),
-    )
+    data = _do_request(
+        'SELECT * FROM history_availability'
+        ' WHERE timestamp={timestamp} AND brand="{brand}"'
+        ' AND name="{name}"'.format(**entry))
+    variants = {d['size']: d for d in data if d['availability']}
+    print(variants)
     content = '\n'
-    for variant in present_variants:
-        availability = entry[variant + '_availability']
+    present_variants = []
+    for size in sorted(variants):
+        availability = variants[size]['availability']
         if availability is None or availability == 0:
             continue
-        content = content + '{} (${:.2f}, {} left)\n'.format(variant, float(entry[variant + '_price'])/100, entry[variant + '_availability'])
+        content = content + '{:.3g}g (${:.2f}, {} left)\n'.format(
+            size, float(variants[size]['price'])/100, availability)
     return _format_status(entry, content)
 
 
