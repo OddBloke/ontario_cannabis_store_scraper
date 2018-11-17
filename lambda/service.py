@@ -131,6 +131,29 @@ def low_stock_tweets(current_state):
     return current_state, statuses
 
 
+def fun_fact_tweets(current_state):
+    statuses = []
+    update_cutoff = datetime.now() - timedelta(hours=8)
+    last_updates = current_state.get('fun_facts', {})
+    if datetime.fromtimestamp(last_updates.get('24h_best_sellers', 0)) < update_cutoff:
+        data = _do_request(
+            "SELECT old.brand,old.name,old.image,old.total AS before,new.total AS after,(COALESCE(old.total, 0)-COALESCE(new.total, 0))/1000 as sold FROM (SELECT history.brand,history.name,history.image,SUM(availability*size) AS total FROM history JOIN history_availability ON history.brand = history_availability.brand AND history.name = history_availability.name AND history.timestamp = history_availability.timestamp AND history.timestamp = (SELECT DISTINCT timestamp FROM history WHERE timestamp < strftime('%s', 'now', '-1 day') ORDER BY timestamp DESC LIMIT 1) GROUP BY history.brand, history.name) old LEFT JOIN (SELECT history.brand,history.name,SUM(availability*size) AS total FROM history JOIN history_availability ON history.brand = history_availability.brand AND history.name = history_availability.name AND history.timestamp = history_availability.timestamp AND history.timestamp = (SELECT DISTINCT timestamp FROM history ORDER BY timestamp DESC LIMIT 1) GROUP BY history.brand, history.name) new ON old.brand = new.brand AND old.name = new.name ORDER BY sold DESC LIMIT 3"
+        )
+        status = 'Top selling strains on Ontario Cannabis Store (last 24 hours):\n'
+        for entry in data:
+            entry['brand_twitter'] = BRAND_TWITTERS.get(entry['brand'],
+                                                        entry['brand'])
+            image = _fix_image(entry.get('image'))
+            status += '{name} by {brand_twitter} ({sold:.3f}kg sold)\n'.format(
+                **entry)
+        status += '\n#ocs'
+        print(status, len(status))
+        last_updates['24h_best_sellers'] = int(datetime.now().strftime('%s'))
+        statuses = [status]
+    current_state['fun_facts'] = last_updates
+    return current_state, statuses
+
+
 def handler_for_timestamp(current_state, debug=False):
     timestamp = current_state['last_timestamp']
     data = _do_request(
@@ -156,6 +179,10 @@ def handler_for_timestamp(current_state, debug=False):
     if not statuses:
         # No new products, look for low-stock products to notify about
         current_state, statuses = low_stock_tweets(current_state)
+
+    if not statuses:
+        # No new product or low-stock updates, fun fact time
+        current_state, statuses = fun_fact_tweets(current_state)
 
     if not debug:
         api = twitter.Api(
@@ -192,4 +219,11 @@ def handler(event, context):
 if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
-        print(handler_for_timestamp({'last_timestamp': sys.argv[1]}, debug=True))
+        low_stock_updates = {sku: int(sys.argv[1]) for sku in sys.argv[2:]}
+        print(handler_for_timestamp(
+            {
+                'last_timestamp': sys.argv[1],
+                'low_stock_updates': low_stock_updates
+            },
+            debug=True,
+        ))
