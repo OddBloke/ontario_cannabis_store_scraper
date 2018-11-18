@@ -153,6 +153,8 @@ def fun_fact_tweets(current_state):
         last_updates['24h_best_sellers'] = int(datetime.now().strftime('%s'))
         statuses = [(status, image)]
         print(statuses)
+    else:
+        print('Skipping fun fact; last one too recent')
     current_state['fun_facts'] = last_updates
     return current_state, statuses
 
