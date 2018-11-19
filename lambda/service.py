@@ -57,6 +57,7 @@ LOW_STOCK_MSG = ('Ontario Cannabis Store are running low on:\n{name} by'
 
 
 def _do_request(query):
+    print 'QUERY:', query
     morph_api_url = "https://api.morph.io/OddBloke/ontario_cannabis_store_scraper/data.json"
     morph_api_key = os.environ['MORPH_API_KEY']
     r = requests.get(morph_api_url, params={
