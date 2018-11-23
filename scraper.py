@@ -196,6 +196,10 @@ class OcsSpider(scrapy.Spider):
             for variant in variant_dict.values()
         }
 
+        if result['url'] == 'https://ocs.ca/products/great-white-shark-2':
+            # Fixup a duplicate name in the OCS site
+            result['name'] = 'Mazar x G.W.S.'
+
         # TODO: GTIN
         print(result)
 
