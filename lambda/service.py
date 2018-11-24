@@ -43,7 +43,8 @@ def _format_status(entry, content):
 
 def _get_standalone_tweet_content(entry):
     entry['price'] = float(entry['price'])
-    return _format_status(entry, ' (${price:.2f}, {standalone_availability} left)')
+    return _format_status(
+        entry, ' (${price:.2f}, {standalone_availability} left)\n')
 
 
 def _get_variant_tweet_content(entry):
