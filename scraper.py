@@ -251,7 +251,11 @@ def do_fixups():
 if __name__ == '__main__':
     do_fixups()
     # data should only contain the data from the latest run
-    scraperwiki.sqlite.execute('DROP TABLE data')
+    try:
+        scraperwiki.sqlite.execute('DROP TABLE data')
+    except Exception as exc:
+        if 'no such table' not in str(exc):
+            raise
     process = CrawlerProcess()
     process.crawl(OcsSpider)
     process.start()
